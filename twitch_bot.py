@@ -3,13 +3,17 @@ from twitch_irc_client import TwitchIRCClient
 from irc import IRC
 from events import Events
 from twitch_message import TwitchMessage
+from threading import Thread, Lock
+import datetime
+import time
 
 class TwitchBotException(Exception):
     pass
 
 class TwitchBot:
-    users=[]
-    commands=[]
+    _delay=30
+    _limit=20
+    _sleep = 0.3
 
     def twitch_irc_cap_cmd(self):
         return 'CAP REQ :twitch.tv/tags\r\nCAP REQ :twitch.tv/membership\r\nCAP REQ :twitch.tv/commands\r\n'
@@ -21,6 +25,45 @@ class TwitchBot:
         self.channel = channel
         self.address = address
         self.events=Events()
+
+        self.users = []
+        self.commands=[]
+        self.messages = []
+        self.l = Lock()
+        self.connected = False
+        self.messages_sent = 0
+        self.last_sent = datetime.datetime.now()
+
+    def process_messages(self):
+        while True:
+            now = datetime.datetime.now()
+
+            if (now - self.last_sent).seconds > self._delay:
+                print('TwitchBot.process_messages: reset check')
+                self.messages_sent = 0
+                self.last_sent = datetime.datetime.now()
+
+            if self.messages_sent == self._limit:
+                print('TwitchBot.process_messages: limit reached')
+                time.sleep(self._sleep)
+                continue
+
+            to_send = self.messages[0:self._limit - self.messages_sent]
+            self.messages = self.messages[len(to_send):]
+
+            if len(to_send) > 0:
+                print('TwitchBot.process_messages: send {} messages'.format(len(to_send)))
+
+                data = ''
+                for msg in to_send:
+                    data+=msg
+
+                print('TwitchBot.process_messages: to send={!r}'.format(data))
+
+                self.transport.write(self.irc.encode(data))
+                self.messages_sent += len(to_send)
+
+            time.sleep(self._sleep)
 
     def set_commands(self, commands):
         self.commands=commands
@@ -35,18 +78,25 @@ class TwitchBot:
         self.client.connect()
 
     def disconnected(self):
+        self.connected = False
         self.events.disconnected()
         print('TwitchBot.disconnected')
 
     def connected(self, transport):
+        self.write_thread = Thread(target=self.process_messages)
+        self.connected = True
         self.events.connected()
-        self.transport=transport
+
+        self.transport = transport
+        self.write_thread.start()
+
         cmd = self.irc.login_cmd(self.oauth, self.username)
         self.write(cmd)
 
-    def write(self, cmd):
-        self.transport.write(self.irc.encode(cmd))
-        print('TwitchBot.write: sent {!r}'.format(cmd))
+    def write(self, message):
+        self.l.acquire()
+        self.messages.extend(message.splitlines(True))
+        self.l.release()
 
     def joined(self, username):
         self.events.joined(username)
