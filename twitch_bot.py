@@ -30,12 +30,16 @@ class TwitchBot:
         self.commands=[]
         self.messages = []
         self.l = Lock()
-        self.connected = False
+        self.is_connected = False
         self.messages_sent = 0
         self.last_sent = datetime.datetime.now()
 
     def process_messages(self):
         while True:
+            if not self.is_connected:
+                print("TwitchBot.process_messages: not connected, exit thread")
+                return
+
             now = datetime.datetime.now()
 
             if (now - self.last_sent).seconds > self._delay:
@@ -78,13 +82,13 @@ class TwitchBot:
         self.client.connect()
 
     def disconnected(self):
-        self.connected = False
+        self.is_connected = False
         self.events.disconnected()
         print('TwitchBot.disconnected')
 
     def connected(self, transport):
         self.write_thread = Thread(target=self.process_messages)
-        self.connected = True
+        self.is_connected = True
         self.events.connected()
 
         self.transport = transport
