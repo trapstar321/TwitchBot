@@ -12,7 +12,7 @@ class TwitchBotException(Exception):
 
 class TwitchBot:
     _delay=30
-    _limit=20
+    _limit=100
     _sleep = 0.3
 
     def twitch_irc_cap_cmd(self):
@@ -43,20 +43,22 @@ class TwitchBot:
             now = datetime.datetime.now()
 
             if (now - self.last_sent).seconds > self._delay:
-                print('TwitchBot.process_messages: reset check')
+                #print('TwitchBot.process_messages: reset check')
                 self.messages_sent = 0
                 self.last_sent = datetime.datetime.now()
 
             if self.messages_sent == self._limit:
-                print('TwitchBot.process_messages: limit reached')
+                #print('TwitchBot.process_messages: limit reached')
                 time.sleep(self._sleep)
                 continue
 
+            self.l.acquire()
             to_send = self.messages[0:self._limit - self.messages_sent]
             self.messages = self.messages[len(to_send):]
+            self.l.release()
 
             if len(to_send) > 0:
-                print('TwitchBot.process_messages: send {} messages'.format(len(to_send)))
+                #print('TwitchBot.process_messages: send {} messages'.format(len(to_send)))
 
                 data = ''
                 for msg in to_send:
