@@ -26,7 +26,6 @@ if __name__=='__main__':
     bot.events.connected = lambda: print('Event: connected')
     bot.events.joined = lambda x: print('Event: {} joined'.format(x))
     bot.events.parted = lambda x: print('Event: {} parted'.format(x))
-    bot.events.joined_channel = lambda x: print('Event: joined channel {}'.format(x))
     bot.events.message_received = lambda x: print('Event: message {} received from {}'.format(x.message, x.username))
 
     try:

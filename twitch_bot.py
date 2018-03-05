@@ -6,6 +6,7 @@ from twitch_message import TwitchMessage
 from threading import Thread, Lock
 import datetime
 import time
+from utils import extract_username, extract_message, parse_command
 
 class TwitchBotException(Exception):
     pass
@@ -114,19 +115,6 @@ class TwitchBot:
         print('TwitchBot.parted: {}'.format(username))
         self.users.remove(username)
 
-    def extract_username(self, username):
-        return username[1:] if username[0] == ':' else username
-
-    def extract_message(self, parts):
-        message = ' '.join(parts[4:])
-        return message[1:] if message[0] == ':' else message
-
-    def parse_command(self, message):
-        parts = message.split(' ')
-        cmd = parts[0][1:]
-        args = parts[1:]
-        return (cmd, args)
-
     def process(self, messages):
         for message in messages:
             try:
@@ -137,7 +125,6 @@ class TwitchBot:
                     self.transport.close()
                     raise TwitchBotException('Failed to authenticate')
                 if parts[1]=='376':
-                    self.events.joined_channel(self.channel)
                     print('TwitchBot.process: received message with code 376. Proceed to join {} channel'.format(self.channel))
                     cmd = self.twitch_irc_cap_cmd()
                     self.write(cmd)
@@ -147,16 +134,16 @@ class TwitchBot:
                     cmd = self.irc.pong_cmd(message)
                     self.write(cmd)
                 elif parts[1]=='JOIN':
-                    self.joined(self.extract_username(parts[0]))
+                    self.joined(extract_username(parts[0]))
                 elif parts[1]=='PART':
-                    self.parted(self.extract_username(parts[0]))
+                    self.parted(extract_username(parts[0]))
                 elif 'PRIVMSG' in message:
-                    username = self.extract_username(parts[1])
-                    message = self.extract_message(parts)
+                    username = extract_username(parts[1])
+                    message = extract_message(parts)
                     self.events.message_received(TwitchMessage(username,message))
 
                     if message[0]=='!':
-                        cmd, args = self.parse_command(message)
+                        cmd, args = parse_command(message)
 
                         print('TwitchBot.process: find command {}'.format(cmd))
                         print('TwitchBot.process: args = {}'.format(args))

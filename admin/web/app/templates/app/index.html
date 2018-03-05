@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />  
+  <title>WebSocket Test</title>
+
+  <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+  <script language="javascript" type="text/javascript">
+    var webSocketUrl = "ws://localhost:8001/";
+
+    function doConnect()
+    {
+      websocket = new WebSocket(webSocketUrl);
+      websocket.onopen = function(evt) { onOpen(evt) };
+      websocket.onclose = function(evt) { onClose(evt) };
+      websocket.onmessage = function(evt) { onMessage(evt) };
+      websocket.onerror = function(evt) { onError(evt) };
+    }
+
+    function onOpen(evt)
+    {
+      console.log('onOpen()');
+      writeToScreen("Connected to web socket server");
+      writeToScreen("Send start bot command");
+
+      var ip =$("input[name=twitch_irc_ip]").val();
+      var port =$("input[name=twitch_irc_port]").val();
+
+      var oauth_token =$("input[name=oauth_token]").val();
+      var username =$("input[name=username]").val();
+      var channel =$("input[name=channel]").val();
+
+      var params = {'command':'START', 'ip':ip, 'port':port, 'oauth_token':oauth_token, 'username':username, 'channel':channel};
+      var json = JSON.stringify(params);
+
+      sendData(json);
+
+      //document.myform.connectButton.disabled = true;
+      //document.myform.disconnectButton.disabled = false;
+    }
+
+    function onClose(evt)
+    {
+      writeToScreen("disconnected\n");
+      //document.myform.connectButton.disabled = false;
+      //document.myform.disconnectButton.disabled = true;
+    }
+
+    function onMessage(evt)
+    {
+      writeToScreen("response: " + evt.data + '\n');
+    }
+
+    function onError(evt)
+    {
+      writeToScreen('error: ' + evt.data + '\n');
+
+    websocket.close();
+
+    document.myform.connectButton.disabled = false;
+    document.myform.disconnectButton.disabled = true;
+
+    }
+
+    function writeToScreen(message)
+    {
+      var textarea = $("textarea[name=outputtext]");
+      var val =textarea.val();
+      textarea.val(val+message+"\n");
+    }
+
+    //window.addEventListener("load", init, false);
+
+    function sendData(data) {
+      writeToScreen("request: " + data);
+      websocket.send(data);      
+    }
+
+    function clearText() {
+      document.myform.outputtext.value = "";
+    }
+
+    function doDisconnect() {
+      websocket.close();
+    }
+
+    function startBot(){
+        doConnect();
+    }
+
+
+  </script>
+</head>
+
+
+
+<body>
+  <div id="output"></div>
+    <form name="myform">
+      <p><textarea name="outputtext" rows="20" cols="100"></textarea></p>
+      <!--<p><textarea name="inputtext" cols="50"></textarea></p>
+      <p><textarea name="url" cols="50"></textarea></p>-->
+
+      <p><input type="text" name="twitch_irc_ip" placeholder="Twitch IRC IP" value="irc.chat.twitch.tv"/></p>
+      <p><input type="text" name="twitch_irc_port" placeholder="Twitch IRC port" value="6667"/></p>
+      <p><input type="text" name="oauth_token" placeholder="Oath token" value="vi6litqlc5gopl0bzhtzn00cq258cs"/></p>
+      <p><input type="text" name="username" placeholder="Username" value="trappeur321"/></p>
+      <p><input type="text" name="channel" placeholder="Channel" value="trappeur321"/></p>
+
+      <p>
+        <input type="button" name="startBotButton" value="Start bot" onClick="startBot();">  
+
+        <!--<input type="button" name=sendButton value="Send" onClick="sendText();">
+        <input type="button" name=clearButton value="Clear" onClick="clearText();">
+        <input type="button" name=disconnectButton value="Disconnect" onClick="doDisconnect();">
+        <input type="button" name=connectButton value="Connect" onClick="doConnect();">-->
+      </p>
+
+
+    </form>
+  </div>
+</body>
+</html>
