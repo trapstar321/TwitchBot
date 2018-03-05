@@ -4,6 +4,7 @@ from protocol import Protocol
 from twitch_bot import TwitchBot
 from irc import IRC
 from commands.test_cmd import TestCmd
+import time
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser('Twitch IRC client')

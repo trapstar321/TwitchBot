@@ -35,6 +35,9 @@ class TwitchBot:
         self.messages_sent = 0
         self.last_sent = datetime.datetime.now()
 
+        self.protocol = Protocol(self.irc, self)
+        self.client = TwitchIRCClient(self.protocol, self.address)
+
     def process_messages(self):
         while True:
             if not self.is_connected:
@@ -76,13 +79,10 @@ class TwitchBot:
         self.commands=commands
 
     def start(self):
-        self.protocol = Protocol(self.irc, self)
-
-        self.client = TwitchIRCClient(self.protocol, self.address)
         self.client.connect()
 
-    def reconnect(self):
-        self.client.connect()
+    def stop(self):
+        self.transport._sock.close()
 
     def disconnected(self):
         self.is_connected = False

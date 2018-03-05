@@ -6,7 +6,13 @@
 
   <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
   <script language="javascript" type="text/javascript">
+    //TODO: add attempt to connect to web socket server
+
     var webSocketUrl = "ws://localhost:8001/";
+
+    $(document).ready(function(){
+      doConnect();
+    });
 
     function doConnect()
     {
@@ -21,27 +27,13 @@
     {
       console.log('onOpen()');
       writeToScreen("Connected to web socket server");
-      writeToScreen("Send start bot command");
-
-      var ip =$("input[name=twitch_irc_ip]").val();
-      var port =$("input[name=twitch_irc_port]").val();
-
-      var oauth_token =$("input[name=oauth_token]").val();
-      var username =$("input[name=username]").val();
-      var channel =$("input[name=channel]").val();
-
-      var params = {'command':'START', 'ip':ip, 'port':port, 'oauth_token':oauth_token, 'username':username, 'channel':channel};
-      var json = JSON.stringify(params);
-
-      sendData(json);
-
       //document.myform.connectButton.disabled = true;
       //document.myform.disconnectButton.disabled = false;
     }
 
     function onClose(evt)
     {
-      writeToScreen("disconnected\n");
+      writeToScreen("Disconnected from web socket server");
       //document.myform.connectButton.disabled = false;
       //document.myform.disconnectButton.disabled = true;
     }
@@ -49,10 +41,12 @@
     function onMessage(evt)
     {
       writeToScreen("response: " + evt.data + '\n');
+      var data = JSON.parse(evt.data);
     }
 
     function onError(evt)
     {
+      console.log(evt);
       writeToScreen('error: ' + evt.data + '\n');
 
     websocket.close();
@@ -84,8 +78,30 @@
       websocket.close();
     }
 
+    // TODO check if web socket is connected
     function startBot(){
-        doConnect();
+      writeToScreen("Send start bot command");
+
+      var ip =$("input[name=twitch_irc_ip]").val();
+      var port =$("input[name=twitch_irc_port]").val();
+
+      var oauth_token =$("input[name=oauth_token]").val();
+      var username =$("input[name=username]").val();
+      var channel =$("input[name=channel]").val();
+
+      var params = {'command':'START', 'ip':ip, 'port':port, 'oauth_token':oauth_token, 'username':username, 'channel':channel};
+      var json = JSON.stringify(params);
+
+      sendData(json);
+    }
+
+    // TODO check if web socket is connected
+    function shutdownBot(){
+      writeToScreen("Send shutdown bot command");
+      var params = {'command':'SHUTDOWN'};
+      var json = JSON.stringify(params);
+
+      sendData(json);
     }
 
 
@@ -109,6 +125,7 @@
 
       <p>
         <input type="button" name="startBotButton" value="Start bot" onClick="startBot();">  
+        <input type="button" name="startBotButton" value="Shutdown bot" onClick="shutdownBot();">  
 
         <!--<input type="button" name=sendButton value="Send" onClick="sendText();">
         <input type="button" name=clearButton value="Clear" onClick="clearText();">

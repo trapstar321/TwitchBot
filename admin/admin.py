@@ -15,25 +15,14 @@ from commands.test_cmd import TestCmd
 
 import json
 
-def start_bot(ip, port, oauth, username, channel):
-   irc = IRC()
-   bot = TwitchBot((ip,port), oauth, username, channel)
-
-   test_cmd = TestCmd()
-   bot.set_commands([test_cmd])
-
-   bot.events.disconnected = lambda: print('Event: disconnected')
-   bot.events.connected = lambda: print('Event: connected')
-   bot.events.joined = lambda x: print('Event: {} joined'.format(x))
-   bot.events.parted = lambda x: print('Event: {} parted'.format(x))
-   bot.events.message_received = lambda x: print('Event: message {} received from {}'.format(x.message, x.username))
-
-   bot.start()
-
 class Admin(WebSocket):
-   def notifyClient(self, command, data, status):
+   clients = []
+   bot = None
+
+   def notifyClient(self, command, data, description, status):
       response = json.dumps({
             'command':command,
+            'description':description,
             'data':data,
             'status':status
          })
@@ -45,30 +34,93 @@ class Admin(WebSocket):
       data = json.loads(self.data)
       print("Request: {}".format(data))
 
-      try:
-         s = ""
-         #start_bot(
-         #   data['ip'],
-         #   data['port'],
-         #   data['oauth_token'],
-         #   data['username'],
-         #   data['channel']
-         #)
-      except OSError as e:
-         print('admin.py OSError: {}'.format(e))
-         self.notifyClient(data['command'], str(e), 'ERROR')
-      except Exception as e:
-         print('admin.py Exception: {}'.format(e))
-         self.notifyClient(data['command'],str(e), 'ERROR')
+      if data['command']=='START':
+         if not self.can_start_bot():
+            self.notifyClient(data['command'], '', self.bot_status(), 'WARNING')
+            return
+         try:
+            self.start_bot(
+               data['ip'],
+               data['port'],
+               data['oauth_token'],
+               data['username'],
+               data['channel']
+            )
+         except OSError as e:
+            print('admin.py OSError: {}'.format(e))
+            self.notifyClient(data['command'], '', str(e), 'ERROR')
+         except Exception as e:
+            print('admin.py Exception: {}'.format(e))
+            self.notifyClient(data['command'], '', str(e), 'ERROR')
+         else:
+            self.notifyClient(data['command'], '', self.bot_status(), 'SUCCESS')
+      elif data['command']=='SHUTDOWN':
+         if self.can_shutdown_bot():
+            Admin.bot.stop()
+         else:
+            self.notifyClient(data['command'], '', self.bot_status(), 'WARNING')
       else:
-         self.notifyClient(data['command'], "Twitch bot running", 'SUCCESS')
+         self.notifyClient(data['command'], '', "Unknown command {}".format(data['command']), 'WARNING')
 
+   def can_start_bot(self):
+      return True if Admin.bot is None or not Admin.bot.protocol.loop.is_running() else False
+
+   def can_shutdown_bot(self):
+      return True if Admin.bot is None or Admin.bot.protocol.loop.is_running() else False
 
    def handleConnected(self):
+      Admin.clients.append(self)
       print(self.address, 'connected')
 
+      self.notifyBotStatus()
+
+   def bot_status(self):
+      return 'Twitch bot {} and {}'.format(
+         'running' if Admin.bot.protocol.loop.is_running() else 'not running',
+         'connected' if Admin.bot.is_connected else 'not connected'
+      )
+
+   def notifyBotStatus(self):
+      if Admin.bot is not None:
+         self.notifyClient('BOT_STATUS', '',
+                           self.bot_status(),
+                           'SUCCESS' if Admin.bot.protocol.loop.is_running and Admin.bot.is_connected else 'WARNING')
+      else:
+         self.notifyClient('BOT_STATUS', '', 'Twitch bot not running and not connected', 'WARNING')
+
+
    def handleClose(self):
-      pass
+      Admin.clients.remove(self)
+
+      if(Admin.bot is not None and len(Admin.clients)==0):
+         print('Last client disconnected. Stop twitch bot')
+         Admin.bot.stop()
+
+   def bot_connected(self):
+      for client in Admin.clients:
+         client.notifyBotStatus()
+
+   def bot_disconnected(self):
+      for client in Admin.clients:
+         client.notifyBotStatus()
+
+   def bot_user_joined(self, username):
+      self.notifyClient("JOINED", username, "User {} joined".format(username), "")
+
+   def start_bot(self,ip, port, oauth, username, channel):
+      irc = IRC()
+      Admin.bot = TwitchBot((ip, port), oauth, username, channel)
+
+      test_cmd = TestCmd()
+      Admin.bot.set_commands([test_cmd])
+
+      Admin.bot.events.disconnected = self.bot_disconnected
+      Admin.bot.events.connected = self.bot_connected
+      Admin.bot.events.joined = lambda x: self.bot_user_joined(x)
+      Admin.bot.events.parted = lambda x: print('Event: {} parted'.format(x))
+      Admin.bot.events.message_received = lambda x: print('Event: message {} received from {}'.format(x.message, x.username))
+
+      Admin.bot.start()
 
 if __name__ == "__main__":
 
