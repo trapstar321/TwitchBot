@@ -166,9 +166,14 @@ class TwitchBot:
                         if len(commands)>0:
                             command = commands[0]
                             print('TwitchBot.process: execute command {}'.format(cmd))
-                            output = command.execute(self, username, args)
-                            print('TwitchBot.process: command output = {}'.format(output))
-                            self.write(self.irc.sendmsg_cmd(self.channel, output))
+                            try:
+                                output = command.execute(self, username, args)
+                                print('TwitchBot.process: command output = {}'.format(output))
+                                self.write(self.irc.sendmsg_cmd(self.channel, output))
+                            except Exception as e:
+                                print('TwitchBot.process: Error while executing command {}'.format(cmd))
+                                print('TwitchBot.process: Exception: {}'.format(e))
+
                         else:
                             print('TwitchBot.process: command {} does not exist'.format(cmd))
             except IndexError as e:
