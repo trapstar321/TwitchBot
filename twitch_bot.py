@@ -36,7 +36,7 @@ class TwitchBot:
         self.last_sent = datetime.datetime.now()
 
         self.protocol = Protocol(self.irc, self)
-        self.client = TwitchIRCClient(self.protocol, self.address)
+        self.client = TwitchIRCClient(self.protocol, self.address, self.on_socket_error)
 
     def process_messages(self):
         while True:
@@ -83,6 +83,11 @@ class TwitchBot:
 
     def stop(self):
         self.transport._sock.close()
+
+    # TODO Check is_connected flag so we know if we were attempting to connect and raise socket_error event
+    def on_socket_error(self, exc):
+        print('TwitchBot.on_socket_error: {}'.format(exc))
+        self.events.socket_error(exc)
 
     def disconnected(self):
         self.is_connected = False
