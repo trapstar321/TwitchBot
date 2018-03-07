@@ -123,6 +123,18 @@ class Admin(WebSocket):
       Admin.bot.start()
 
 if __name__ == "__main__":
+   import os, django
+   import sys
+
+   sys.path.append(os.path.abspath('web'))
+
+   # set the specific django settings file
+   os.environ.setdefault("DJANGO_SETTINGS_MODULE", "web.web.settings")
+   django.setup()
+
+   from django.contrib.auth.models import User
+
+   print(User.objects.all())
 
    parser = OptionParser(usage="usage: %prog [options]", version="%prog 1.0")
    parser.add_option("--host", default='', type='string', action="store", dest="host", help="hostname (localhost)")
