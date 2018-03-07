@@ -87,7 +87,7 @@ class TwitchBot:
     # TODO Check is_connected flag so we know if we were attempting to connect and raise socket_error event
     def on_socket_error(self, exc):
         print('TwitchBot.on_socket_error: {}'.format(exc))
-        self.events.socket_error(exc)
+        self.events.socket_error(exc, self.is_connected)
 
     def disconnected(self):
         self.is_connected = False

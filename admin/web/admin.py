@@ -34,7 +34,10 @@ class Admin(WebSocket):
       data = json.loads(self.data)
       print("Request: {}".format(data))
 
-      if data['command']=='START':
+      #store clients token for permission check in db
+      if data['command']=='TOKEN':
+         self.token=data['token']
+      elif data['command']=='START':
          if not self.can_start_bot():
             self.notifyClient(data['command'], '', self.bot_status(), 'WARNING')
             return
@@ -88,6 +91,11 @@ class Admin(WebSocket):
       else:
          self.notifyClient('BOT_STATUS', '', 'Twitch bot not running and not connected', 'WARNING')
 
+   def notifyBotStatusExc(self, exc):
+      self.notifyClient('BOT_STATUS', str(exc),
+                        self.bot_status(),
+                        'SUCCESS' if Admin.bot.protocol.loop.is_running and Admin.bot.is_connected else 'WARNING')
+
 
    def handleClose(self):
       Admin.clients.remove(self)
@@ -104,6 +112,10 @@ class Admin(WebSocket):
       for client in Admin.clients:
          client.notifyBotStatus()
 
+   def bot_socket_error(self, exc, is_connected):
+      for client in Admin.clients:
+         client.notifyBotStatusExc(exc)
+
    def bot_user_joined(self, username):
       self.notifyClient("JOINED", username, "User {} joined".format(username), "")
 
@@ -119,6 +131,7 @@ class Admin(WebSocket):
       Admin.bot.events.joined = lambda x: self.bot_user_joined(x)
       Admin.bot.events.parted = lambda x: print('Event: {} parted'.format(x))
       Admin.bot.events.message_received = lambda x: print('Event: message {} received from {}'.format(x.message, x.username))
+      Admin.bot.events.socket_error = lambda exc, is_connected: self.bot_socket_error(exc, is_connected)
 
       Admin.bot.start()
 
@@ -129,12 +142,13 @@ if __name__ == "__main__":
    sys.path.append(os.path.abspath('web'))
 
    # set the specific django settings file
-   os.environ.setdefault("DJANGO_SETTINGS_MODULE", "web.web.settings")
+   os.environ.setdefault("DJANGO_SETTINGS_MODULE", "web.settings")
    django.setup()
 
-   from django.contrib.auth.models import User
+   from django.contrib.auth.models import User,Permission
+   from app.models import Token
 
-   print(User.objects.all())
+   #print(User.objects.all())
 
    parser = OptionParser(usage="usage: %prog [options]", version="%prog 1.0")
    parser.add_option("--host", default='', type='string', action="store", dest="host", help="hostname (localhost)")

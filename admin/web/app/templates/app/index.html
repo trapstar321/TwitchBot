@@ -27,6 +27,10 @@
     {
       console.log('onOpen()');
       writeToScreen("Connected to web socket server");
+
+      var json = JSON.stringify({'command':'TOKEN', 'token':$('input[name=token]').val()});
+
+      sendData(json);
       //document.myform.connectButton.disabled = true;
       //document.myform.disconnectButton.disabled = false;
     }
@@ -132,7 +136,7 @@
         <input type="button" name=disconnectButton value="Disconnect" onClick="doDisconnect();">
         <input type="button" name=connectButton value="Connect" onClick="doConnect();">-->
       </p>
-
+      <input type="hidden" name="token" value="{{token}}"/>
 
     </form>
   </div>
