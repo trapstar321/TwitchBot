@@ -37,6 +37,7 @@ class TwitchBot:
 
         self.protocol = Protocol(self.irc, self)
         self.client = TwitchIRCClient(self.protocol, self.address, self.on_socket_error)
+        self.transport=None
 
     def process_messages(self):
         while True:
@@ -82,7 +83,16 @@ class TwitchBot:
         self.client.connect()
 
     def stop(self):
-        self.transport._sock.close()
+        #force socket close if we have a open socket
+        if not self.transport is None:
+            try:
+                self.transport._sock.close()
+            except Exception as ex:
+                print('TwitchBot.stop: {}'.format(ex))
+        #force loop stop
+        else:
+            print('TwitchBot.stop: stop loop')
+            self.protocol.loop.stop()
 
     # TODO Check is_connected flag so we know if we were attempting to connect and raise socket_error event
     def on_socket_error(self, exc):
@@ -90,6 +100,7 @@ class TwitchBot:
         self.events.socket_error(exc, self.is_connected)
 
     def disconnected(self):
+        self.transport=None
         self.is_connected = False
         self.events.disconnected()
         print('TwitchBot.disconnected')

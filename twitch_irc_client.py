@@ -18,7 +18,14 @@ class TwitchIRCClient:
         except socket.gaierror as ex:
             print("TwitchIRCClient.f: {}".format(ex))
             self.error_callback(ex)
+        except OSError as ex:
+            print("TwitchIRCClient.f: {}".format(ex))
+            self.error_callback(ex)
+        except RuntimeError as ex:
+            print("TwitchIRCClient.f: {}".format(ex))
+            self.error_callback(ex)
 
+        print('TwitchIRCClient.f: loop stopped')
 
     def connect(self):
         coro = self.loop.create_connection(lambda: self.protocol, *self.address)

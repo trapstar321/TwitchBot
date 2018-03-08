@@ -11,3 +11,10 @@ class Admin(models.Model):
 class Token(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     token = models.CharField(max_length=10)
+
+class IRCSetup(models.Model):
+    ip = models.CharField(max_length=100)
+    port = models.IntegerField(default=0)
+    oauth_token = models.CharField(max_length=100)
+    username = models.CharField(max_length=100)
+    channel = models.CharField(max_length=100)

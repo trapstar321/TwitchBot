@@ -86,14 +86,7 @@
     function startBot(){
       writeToScreen("Send start bot command");
 
-      var ip =$("input[name=twitch_irc_ip]").val();
-      var port =$("input[name=twitch_irc_port]").val();
-
-      var oauth_token =$("input[name=oauth_token]").val();
-      var username =$("input[name=username]").val();
-      var channel =$("input[name=channel]").val();
-
-      var params = {'command':'START', 'ip':ip, 'port':port, 'oauth_token':oauth_token, 'username':username, 'channel':channel};
+      var params = {'command':'START'};
       var json = JSON.stringify(params);
 
       sendData(json);
@@ -103,6 +96,22 @@
     function shutdownBot(){
       writeToScreen("Send shutdown bot command");
       var params = {'command':'SHUTDOWN'};
+      var json = JSON.stringify(params);
+
+      sendData(json);
+    }
+
+    function setupIRC(){
+      writeToScreen("Send setupIRC command");
+
+      var ip =$("input[name=twitch_irc_ip]").val();
+      var port =$("input[name=twitch_irc_port]").val();
+
+      var oauth_token =$("input[name=oauth_token]").val();
+      var username =$("input[name=username]").val();
+      var channel =$("input[name=channel]").val();
+
+      var params = {'command':'IRC_SETUP', 'ip':ip, 'port':port, 'oauth_token':oauth_token, 'username':username, 'channel':channel};
       var json = JSON.stringify(params);
 
       sendData(json);
@@ -129,7 +138,8 @@
 
       <p>
         <input type="button" name="startBotButton" value="Start bot" onClick="startBot();">  
-        <input type="button" name="startBotButton" value="Shutdown bot" onClick="shutdownBot();">  
+        <input type="button" name="startBotButton" value="Shutdown bot" onClick="shutdownBot();">
+        <input type="button" name="setupIRCButton" value="Setup IRC" onClick="setupIRC();">
 
         <!--<input type="button" name=sendButton value="Send" onClick="sendText();">
         <input type="button" name=clearButton value="Clear" onClick="clearText();">

@@ -18,6 +18,68 @@ import json
 class Admin(WebSocket):
    clients = []
    bot = None
+   irc_setup = None
+
+   #codename of permission in db
+   permissions = {
+      'can_start_shutdown':None,
+      'can_setup_irc':None
+   }
+
+   #command permission link
+   command_permissions = {
+      'START':'can_start_shutdown',
+      'SHUTDOWN':'can_start_shutdown',
+      'IRC_SETUP': 'can_setup_irc'
+   }
+
+   command_check_permissions={
+      'START': True,
+      'SHUTDOWN': True,
+      'IRC_SETUP': True,
+      'TOKEN':False
+   }
+
+   #get user from token
+   def get_user(self):
+      token = Token.objects.get(token=self.token)
+      self.user = token.user
+
+   # bind permission codename with Permission object
+   @staticmethod
+   def load_permissions():
+      for key in Admin.permissions:
+         Admin.permissions[key]=Permission.objects.get(codename=key)
+
+   # set command permissions (just true false flag)
+   def get_permissions(self):
+      self.permissions = {'START':False, 'SHUTDOWN':False, 'TOKEN':True, 'IRC_SETUP':False}
+
+      for key in Admin.command_permissions:
+         codename = Admin.command_permissions[key]
+         perm = Admin.permissions[codename]
+         self.permissions[key]=self.user.has_perm(perm)
+
+   def has_permission(self, command):
+      return self.permissions[command]
+
+   @staticmethod
+   def load_irc_settings():
+      Admin.irc_setup = IRCSetup.objects.first()
+
+   @staticmethod
+   def store_irc_settings(data):
+      if Admin.irc_setup is None:
+         print('Create new IRC setup')
+         IRCSetup.objects.create(ip=data['ip'], port=data['port'], oauth_token=data['oauth_token'], username=data['username'], channel=data['channel'])
+      else:
+         Admin.irc_setup.ip = data['ip']
+         Admin.irc_setup.port = data['port']
+         Admin.irc_setup.oauth_token = data['oauth_token']
+         Admin.irc_setup.username = data['username']
+         Admin.irc_setup.channel = data['channel']
+         Admin.irc_setup.save()
+         print('IRC setup changed')
 
    def notifyClient(self, command, data, description, status):
       response = json.dumps({
@@ -34,20 +96,41 @@ class Admin(WebSocket):
       data = json.loads(self.data)
       print("Request: {}".format(data))
 
+      if Admin.command_check_permissions[data['command']]:
+         if not self.has_permission(data['command']):
+            # TODO implement notification when user has no rights for command
+            print('Notify client has no permissions')
+
       #store clients token for permission check in db
       if data['command']=='TOKEN':
          self.token=data['token']
+         self.get_user()
+         self.get_permissions()
+      elif data['command']=='IRC_SETUP':
+         Admin.load_irc_settings()
+         Admin.store_irc_settings(data)
+         self.notifyClient('IRC_SETUP', data,
+                           'IRC setup changed',
+                           'SUCCESS')
       elif data['command']=='START':
+         # TODO if no objects found warn everybody that irc isn't setup yet
+         Admin.load_irc_settings()
+         if Admin.irc_setup is None:
+            self.notifyClient('START', '',
+                              'IRC setup not found',
+                              'WARNING')
+            return
+
          if not self.can_start_bot():
             self.notifyClient(data['command'], '', self.bot_status(), 'WARNING')
             return
          try:
             self.start_bot(
-               data['ip'],
-               data['port'],
-               data['oauth_token'],
-               data['username'],
-               data['channel']
+               Admin.irc_setup.ip,
+               Admin.irc_setup.port,
+               Admin.irc_setup.oauth_token,
+               Admin.irc_setup.username,
+               Admin.irc_setup.channel
             )
          except OSError as e:
             print('admin.py OSError: {}'.format(e))
@@ -119,6 +202,12 @@ class Admin(WebSocket):
    def bot_user_joined(self, username):
       self.notifyClient("JOINED", username, "User {} joined".format(username), "")
 
+   def bot_user_parted(self, username):
+      self.notifyClient("PARTED", username, "User {} parted".format(username), "")
+
+   def bot_message_received(self, message, username):
+      self.notifyClient("PRIVMSG", {'message':message, 'user':username}, "Message {} from {}".format(message, username), "")
+
    def start_bot(self,ip, port, oauth, username, channel):
       irc = IRC()
       Admin.bot = TwitchBot((ip, port), oauth, username, channel)
@@ -129,8 +218,8 @@ class Admin(WebSocket):
       Admin.bot.events.disconnected = self.bot_disconnected
       Admin.bot.events.connected = self.bot_connected
       Admin.bot.events.joined = lambda x: self.bot_user_joined(x)
-      Admin.bot.events.parted = lambda x: print('Event: {} parted'.format(x))
-      Admin.bot.events.message_received = lambda x: print('Event: message {} received from {}'.format(x.message, x.username))
+      Admin.bot.events.parted = lambda x: self.bot_user_parted(x)
+      Admin.bot.events.message_received = lambda x: self.bot_message_received(x.message, x.username)
       Admin.bot.events.socket_error = lambda exc, is_connected: self.bot_socket_error(exc, is_connected)
 
       Admin.bot.start()
@@ -146,7 +235,7 @@ if __name__ == "__main__":
    django.setup()
 
    from django.contrib.auth.models import User,Permission
-   from app.models import Token
+   from app.models import Token, IRCSetup
 
    #print(User.objects.all())
 
@@ -160,6 +249,8 @@ if __name__ == "__main__":
 
    (options, args) = parser.parse_args()
    cls = Admin
+   #Admin.load_irc_settings()
+   Admin.load_permissions()
 
    if options.ssl == 1:
       server = SimpleSSLWebSocketServer(options.host, options.port, cls, options.cert, options.key, version=options.ver)
